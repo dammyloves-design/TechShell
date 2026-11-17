@@ -1,3 +1,5 @@
+// Name: Ayomide Oyekunle
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,31 +10,38 @@
 #include <fcntl.h>
 #include <ctype.h>
 
-
+// Global variables used to keep track of input and output redirection
 char *outputFile = NULL;
 char *inputFile = NULL;
 int appendMode = 0;
+
+// Array to store command history
 char *history[100];
 int historyCount = 0;
 
+// Displays error
 void printError(){
     fprintf(stderr, "Error %d (%s)\n", errno, strerror(errno));
 }
 
+// Parses user input into command arguments 
 void parseCommand(char input[], char * args[]){
     outputFile = NULL;
     inputFile = NULL;
     appendMode = 0;
 
-    char *tokens[100];
-    int protectedToken[100];
+    char *tokens[100];      // stores individual tokens frm the command
+    int protectedToken[100]; // tracks tokens containng quotes or escaped characters
     int tokenCount = 0;
 
+    // Read and write pointers allows the input string to be modified in place
     char *read = input;
     char *write = input;
 
+    // Separate the inpuy intontokens while there is space available
     while(*read != '\0' && tokenCount < 99){
 
+        // skip whitespace between tokens
         while(isspace((unsigned char)*read)){
             read++;
         }
@@ -43,12 +52,13 @@ void parseCommand(char input[], char * args[]){
 
         tokens[tokenCount] = write;
         
-        int inQuotes = 0;
-        int wasProtected = 0;
+        int inQuotes = 0; // tracks whether the parser is inside double quotes
+        int wasProtected = 0; // tracks whehter this token contained quoted or escapes
 
+        // continue reading until the end of the token
         while(*read != '\0' && (inQuotes || !isspace((unsigned char)*read))){
 
-            // Handle backslash
+            // Handle backslash escapes, allows spaces to be part of a token
             if(*read == '\\' && read[1] != '\0'){
                 wasProtected = 1;
                 read++;
@@ -66,6 +76,7 @@ void parseCommand(char input[], char * args[]){
                 continue;
             }
 
+            // Copy the current character into the token
             *write = *read;
             write++;
             read++;
@@ -76,6 +87,7 @@ void parseCommand(char input[], char * args[]){
             read++;
         }
 
+        // End the current token with a null generator
         *write = '\0';
         write++;
 
@@ -83,12 +95,13 @@ void parseCommand(char input[], char * args[]){
         tokenCount++;
     }
 
-    // Step 2: Separate arguments from redirection operators
+    // Separate arguments from redirection operators
     int i = 0;
     int j = 0;
 
     while(i < tokenCount){
 
+        // Check for append redirection
         if(!protectedToken[i] && strcmp(tokens[i], ">>") == 0){
 
             if(i + 1 < tokenCount){
@@ -96,6 +109,7 @@ void parseCommand(char input[], char * args[]){
                 appendMode = 1;
             }
         }
+        // Check for output redirection
         else if(!protectedToken[i] && strcmp(tokens[i], ">") == 0){
 
             if(i + 1 < tokenCount){
@@ -103,12 +117,14 @@ void parseCommand(char input[], char * args[]){
                 appendMode = 0;
             }
         }
+        // Check for input redirection
         else if(!protectedToken[i] && strcmp(tokens[i], "<") == 0){
 
             if(i + 1 < tokenCount){
                 inputFile = tokens[++i];
             }
         }
+        // store tokens that are not redirection operators as command arguments
         else{
             args[j] = tokens[i];
             j++;
@@ -119,9 +135,11 @@ void parseCommand(char input[], char * args[]){
 
 }
 
-
+// Executes built-in commands
 void executeCommand(char *args[]){
 
+    // handle the exit command 
+    // free allocated history memory and closing the shell
     if(strcmp(args[0], "exit") == 0){
         for(int i = 0; i < historyCount; i++){
             free(history[i]);
@@ -130,6 +148,8 @@ void executeCommand(char *args[]){
         exit(0);
     }
 
+
+    // handle history command - displays previous commands
     if(strcmp(args[0], "history") == 0){
         for(int i = 0; i < historyCount; i++){
             printf("%d %s\n", i + 1, history[i]);
@@ -137,43 +157,48 @@ void executeCommand(char *args[]){
         return;
     }
 
+    // handles changing directory "cd"
     if(strcmp(args[0], "cd") == 0){
         if(args[1] == NULL){
-            if(chdir(getenv("HOME")) != 0){
+            if(chdir(getenv("HOME")) != 0){ // if no directory is provided change to home
                 printError();
             }
         }
         else{
-            if(chdir(args[1]) != 0){
+            if(chdir(args[1]) != 0){ // change to directory provided by user
                 printError();
             }
         }
         return;
     }
 
-    pid_t pid = fork();
+
+    pid_t pid = fork(); // create a child process to execute external commands
 
     if(pid < 0){
-        printError();
+        printError(); // display error if child process could not be created
     }
-    else if(pid == 0){
+    else if(pid == 0){ // child process
 
+        // handle output redirection if required
         if(outputFile != NULL){
             int flags = O_WRONLY | O_CREAT;
 
+            // choose whether to appned or overwrite the file
             if(appendMode == 1){
                 flags = flags | O_APPEND;
             }
             else{
                 flags = flags | O_TRUNC;
             }
-            int fd = open(outputFile, flags, 0644);
+            int fd = open(outputFile, flags, 0644); // open or create the output file
 
             if(fd < 0){
                 printError();
                 exit(EXIT_FAILURE);
             }
 
+            // redirect stdout to the opened file
             if(dup2(fd, STDOUT_FILENO) < 0){
                 printError();
                 exit(EXIT_FAILURE);
@@ -181,6 +206,7 @@ void executeCommand(char *args[]){
             close(fd);
         }
 
+        // handle input redirection if requested
         if (inputFile != NULL){
             int fd = open(inputFile, O_RDONLY);
 
@@ -197,13 +223,15 @@ void executeCommand(char *args[]){
             
         }
         
-
+        // replace child
         execvp(args[0], args);
+
+        // if execvp fails
         printError();
         exit(EXIT_FAILURE);
     }
     else{
-        waitpid(pid, NULL, 0);
+        waitpid(pid, NULL, 0); // parent waits for child to finish
     }
 }
 
@@ -211,12 +239,13 @@ void executeCommand(char *args[]){
 
 int main(){
     
-    char cwd[1024];
-    char input[100];
-    char *args[100];
+    char cwd[1024]; // stores current working directory
+    char input[100]; // stores user'd command line
+    char *args[100]; // soted parsed arguments
 
     while (1){
 
+        // Display current working directory in the ahell prompt
         if(getcwd(cwd, sizeof(cwd)) != NULL){
             printf("%s$ ", cwd);
         }
@@ -224,12 +253,14 @@ int main(){
             printError();
         }
 
+        // read command from user
         if(fgets(input, sizeof(input), stdin) == NULL){
             printf("\n");
             break;
         }
-        input[strcspn(input, "\n")] = '\0';
+        input[strcspn(input, "\n")] = '\0'; // removes newline char
 
+        // saves a copy of each command in the history array
         if(strlen(input) > 0 && historyCount < 100){
             history[historyCount] = strdup(input);
             historyCount++;
@@ -238,15 +269,14 @@ int main(){
         
 
         
-        parseCommand(input, args);
+        parseCommand(input, args); // parse commands into arguments
 
-        
-
+        // ignore blank or whitespace-only commands
         if(args[0] == NULL){
             continue;
         }
         
-        executeCommand(args);
+        executeCommand(args); // execute parsed commad
 
         
     }

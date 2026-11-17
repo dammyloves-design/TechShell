@@ -1,3 +1,5 @@
+// Name : Ayomide Oyekunle
+
 
 TechShell
 
@@ -16,17 +18,28 @@ Features
     - Supports combined redirection - supports both input and output redirection in the same command
     - Error Handling: Displays errors 
 
-Possible Future Implementation
-    - Navigting the history uisng the up and down arrows.
-    - save command history between shell sessions
 
 Requirements
     - Ubuntu
     - gcc compiler
     - Git
 To Clone:
-    git clone ...
+    git clone https://github.com/dammyloves-design/TechShell
 
 To Compile and Run:
     gcc techshell.c -o techshell
     ./techshell
+
+Testing examples:
+    pwd
+    ls
+    ls -l
+    echo Hello World!
+    cd ..
+    pwd
+    cat input.txt
+    echo Hello > output.txt
+    cat output.txt
+    sort < input.txt > sorted.txt
+    ls
+    history
