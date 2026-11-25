@@ -4,7 +4,7 @@
 TechShell
 
 TechShell is a simple command line shell implemented in C.
-Techshell accepts user commands, executes programs supports fuile input and output redirection.
+Techshell accepts user commands, executes programs supports full input and output redirection.
 
 Features
     - can perform basic unix commands like pwd, ls, and echo etc.
@@ -14,7 +14,7 @@ Features
     - Exit: exit terminates the shell
     - Output redirection (>) - redirects command output into a file
     - Append Redirection(>>) - appends command output into a  file
-    - Input Redirection (<) - reads command inpout froma file
+    - Input Redirection (<) - reads command input from a file
     - Supports combined redirection - supports both input and output redirection in the same command
     - Error Handling: Displays errors 
 
